@@ -1,6 +1,6 @@
 # Metal in C++
 
-**Without XCode** - This repo uses CMake and VSCode to make Metal functions accessible in C++.
+**Without XCode** - This repo uses CMake to make the Metal API accessible in C++.
 
 It's not very clean, main.cpp just builds everything without any consideration for hiding behind abstraction or reusability. This repo isn't supposed to provide a complete solution, just a template to build further off of.
 
