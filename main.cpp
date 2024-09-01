@@ -71,7 +71,7 @@ void metal_add_arrays(MTL::Device* d, MTL::Buffer* a, MTL::Buffer* b, MTL::Buffe
 // Implementation 2: easy to call, not reusable
 // Implementation 3: instantiate once, fully reusable
 
-// #define I1
+#define I1
 #define I2
 #define I3
 
@@ -184,7 +184,7 @@ int main() {
   MTL::Buffer *bufferC3 = d->newBuffer(c3.data(), sizeof(c3), MTL::ResourceStorageModeShared);
 
   MetalAdder *adder = new MetalAdder(d);
-  adder->run(bufferA3, bufferB3, bufferC3);
+  adder->process(bufferA3, bufferB3, bufferC3);
 
   float *resultPointer3 = (float *)bufferC3->contents();
   for (int i = 0; i < a3.size(); i++) {
