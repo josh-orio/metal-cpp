@@ -8,8 +8,9 @@
 
 #include <iostream>
 
-void metal_add_arrays(MTL::Device* d, MTL::Buffer* a, MTL::Buffer* b, MTL::Buffer* c) {
-    NS::Error *error = nullptr;
+void metal_add_arrays(MTL::Device *d, float *a, float *b, float *c,
+                      std::size_t size) {
+  NS::Error *error = nullptr;
 
   MTL::Library *defaultLibrary = d->newDefaultLibrary();
   if (defaultLibrary == nullptr) {
@@ -43,11 +44,18 @@ void metal_add_arrays(MTL::Device* d, MTL::Buffer* a, MTL::Buffer* b, MTL::Buffe
       computePipelineState); // points the compute pipeline the add_arrays
                              // function
 
-  computeEncoder->setBuffer(a, 0, 0); // Argument 0
-  computeEncoder->setBuffer(b, 0, 1); // Argument 1
-  computeEncoder->setBuffer(c, 0, 2); // Argument 2
+  MTL::Buffer *bufferA = d->newBuffer(a, size * sizeof(float),
+                                           MTL::ResourceStorageModeShared);
+  MTL::Buffer *bufferB = d->newBuffer(b, size * sizeof(float),
+                                           MTL::ResourceStorageModeShared);
+  MTL::Buffer *bufferC = d->newBuffer(c, size * sizeof(float),
+                                           MTL::ResourceStorageModeShared);
 
-  NS::UInteger arrayLength = a->length(); // length of the arrays
+  computeEncoder->setBuffer(bufferA, 0, 0); // Argument 0
+  computeEncoder->setBuffer(bufferB, 0, 1); // Argument 1
+  computeEncoder->setBuffer(bufferC, 0, 2); // Argument 2
+
+  NS::UInteger arrayLength = size; // length of the arrays
   NS::UInteger threadGroupSize =
       computePipelineState->maxTotalThreadsPerThreadgroup();
   NS::UInteger numThreadgroups =
@@ -60,18 +68,18 @@ void metal_add_arrays(MTL::Device* d, MTL::Buffer* a, MTL::Buffer* b, MTL::Buffe
   commandBuffer->commit();
   commandBuffer->waitUntilCompleted();
 
-//   defaultLibrary->release();
-//   addArrays->release();
-//   commandQueue->release();
-//   commandBuffer->release();
-//   computeEncoder->release();
+  // copy the data back for the caller
+  float *resultPointer = (float *)bufferC->contents();
+  for (int i = 0; i < size; i++) {
+    c[i] = resultPointer[i];
+  }
 }
 
 // Implementation 1: not reusable at all
 // Implementation 2: easy to call, not reusable
 // Implementation 3: instantiate once, fully reusable
 
-#define I1
+// #define I1
 #define I2
 #define I3
 
@@ -119,9 +127,12 @@ int main() {
       computePipelineState); // points the compute pipeline the add_arrays
                              // function
 
-  MTL::Buffer *bufferA1 = d->newBuffer(a1.data(), sizeof(a1), MTL::ResourceStorageModeShared);
-  MTL::Buffer *bufferB1 = d->newBuffer(b1.data(), sizeof(b1), MTL::ResourceStorageModeShared);
-  MTL::Buffer *bufferC1 = d->newBuffer(c1.data(), sizeof(c1), MTL::ResourceStorageModeShared);
+  MTL::Buffer *bufferA1 =
+      d->newBuffer(a1.data(), sizeof(a1), MTL::ResourceStorageModeShared);
+  MTL::Buffer *bufferB1 =
+      d->newBuffer(b1.data(), sizeof(b1), MTL::ResourceStorageModeShared);
+  MTL::Buffer *bufferC1 =
+      d->newBuffer(c1.data(), sizeof(c1), MTL::ResourceStorageModeShared);
   // still use sizeof() not .size()
 
   computeEncoder->setBuffer(bufferA1, 0, 0); // Argument 0
@@ -157,18 +168,10 @@ int main() {
   std::array<float, 4> b2 = {5.0f, 6.0f, 7.0f, 8.0f};
   std::array<float, 4> c2;
 
-  MTL::Buffer *bufferA2 = d->newBuffer(a2.data(), sizeof(a2), MTL::ResourceStorageModeShared);
-  MTL::Buffer *bufferB2 = d->newBuffer(b2.data(), sizeof(b2), MTL::ResourceStorageModeShared);
-  MTL::Buffer *bufferC2 = d->newBuffer(c2.data(), sizeof(c2), MTL::ResourceStorageModeShared);
+  metal_add_arrays(d, a2.data(), b2.data(), c2.data(), a2.size());
 
-  metal_add_arrays(d, bufferA2, bufferB2, bufferC2);
-
-  float *resultPointer2 = (float *)bufferC2->contents();
-  for (int i = 0; i < a2.size(); i++) {
-    c2[i] = resultPointer2[i];
-  }
-  for (float f : c2) {
-    std::cout << f << " ";
+  for (float c : c2) {
+    std::cout << c << " ";
   }
   std::cout << std::endl;
 
@@ -177,21 +180,13 @@ int main() {
 #ifdef I3
   std::array<float, 4> a3 = {1.0f, 2.0f, 3.0f, 4.0f};
   std::array<float, 4> b3 = {5.0f, 6.0f, 7.0f, 8.0f};
-  std::array<float, 4> c3;
-
-  MTL::Buffer *bufferA3 = d->newBuffer(a3.data(), sizeof(a3), MTL::ResourceStorageModeShared);
-  MTL::Buffer *bufferB3 =  d->newBuffer(b3.data(), sizeof(b3), MTL::ResourceStorageModeShared);
-  MTL::Buffer *bufferC3 = d->newBuffer(c3.data(), sizeof(c3), MTL::ResourceStorageModeShared);
+  std::array<float, 4> c3 = {};
 
   MetalAdder *adder = new MetalAdder(d);
-  adder->process(bufferA3, bufferB3, bufferC3);
+  adder->process(a3.data(), b3.data(), c3.data(), a3.size());
 
-  float *resultPointer3 = (float *)bufferC3->contents();
-  for (int i = 0; i < a3.size(); i++) {
-    c3[i] = resultPointer3[i];
-  }
-  for (float f : c3) {
-    std::cout << f << " ";
+  for (float c : c3) {
+    std::cout << c << " ";
   }
   std::cout << std::endl;
 

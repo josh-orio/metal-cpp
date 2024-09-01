@@ -8,6 +8,7 @@
 
 class MetalAdder {
 public:
+  MTL::Device *device;
   // The compute pipeline generated from the compute kernel in the .metal shader
   // file.
   MTL::ComputePipelineState *computePipelineState;
@@ -15,6 +16,8 @@ public:
   MTL::CommandQueue *commandQueue;
 
   MetalAdder(MTL::Device *d) {
+    device = d;
+
     NS::Error *error = nullptr;
 
     MTL::Library *defaultLibrary = d->newDefaultLibrary();
@@ -44,13 +47,13 @@ public:
       return;
     }
   };
-  
+
   ~MetalAdder() {
     computePipelineState->release();
     commandQueue->release();
   };
 
-  void process(MTL::Buffer *a, MTL::Buffer *b, MTL::Buffer *c) {
+  void process(float *a, float *b, float *c, std::size_t size) {
     // commandQueue = device->newCommandQueue();
     MTL::CommandBuffer *commandBuffer = commandQueue->commandBuffer();
     MTL::ComputeCommandEncoder *computeEncoder =
@@ -60,11 +63,18 @@ public:
         computePipelineState); // points the compute pipeline the add_arrays
                                // function
 
-    computeEncoder->setBuffer(a, 0, 0); // Argument 0
-    computeEncoder->setBuffer(b, 0, 1); // Argument 1
-    computeEncoder->setBuffer(c, 0, 2); // Argument 2
+    MTL::Buffer *bufferA = device->newBuffer(a, size * sizeof(float),
+                                             MTL::ResourceStorageModeShared);
+    MTL::Buffer *bufferB = device->newBuffer(b, size * sizeof(float),
+                                             MTL::ResourceStorageModeShared);
+    MTL::Buffer *bufferC = device->newBuffer(c, size * sizeof(float),
+                                             MTL::ResourceStorageModeShared);
 
-    NS::UInteger arrayLength = 4; // length of the arrays
+    computeEncoder->setBuffer(bufferA, 0, 0); // Argument 0
+    computeEncoder->setBuffer(bufferB, 0, 1); // Argument 1
+    computeEncoder->setBuffer(bufferC, 0, 2); // Argument 2
+
+    NS::UInteger arrayLength = size; // length of the arrays
     NS::UInteger threadGroupSize =
         computePipelineState->maxTotalThreadsPerThreadgroup();
     NS::UInteger numThreadgroups =
@@ -77,6 +87,12 @@ public:
     computeEncoder->endEncoding();
     commandBuffer->commit();
     commandBuffer->waitUntilCompleted();
+
+    // copy the data back for the caller
+    float *resultPointer = (float *)bufferC->contents();
+    for (int i = 0; i < size; i++) {
+      c[i] = resultPointer[i];
+    }
   };
 };
 
