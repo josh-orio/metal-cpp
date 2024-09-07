@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.21)
 set(CMAKE_CXX_STANDARD 20)
 project(metal-cpp)
 
+
+# COMPILE METAL SOURCE AND GENERATE DEFAULT LIB
 set(METAL_SOURCES math.metal) # include the project's metal files here
 set(METAL_OUTPUT default.metallib)
 
@@ -20,7 +22,8 @@ add_custom_command(
 )
 
 add_custom_target(default_library ALL DEPENDS ${CMAKE_BINARY_DIR}/${METAL_OUTPUT})
+##############################################
 
-add_subdirectory(metal-cmake)  # include metal
+add_subdirectory(metal-headers)  # include metal headers
 add_executable(metal-cpp main.cpp)
 target_link_libraries(metal-cpp METAL_CPP)
